@@ -12,6 +12,7 @@
 import feature_vector
 import english_1st_fgen
 import debug.debug
+from collections import defaultdict
 
 import copy
 
@@ -27,6 +28,10 @@ class SecondOrderFeatureGenerator():
         # Make shortcuts - Not necessary, but saves some key strokes
         self.word_list = self.first_order_generator.word_list
         self.pos_list = self.first_order_generator.pos_list
+        # Dictionary stores the first left/right modifer of a head
+        # Key: the index of a head word
+        # Value: (first left modifier idx, first right modifer idx) of the head
+        self.head_modifier_dict = defaultdict(lambda:(-1, -1))
 
         #~# Get edge from sentence instance
         #~# Does not require first order fgen to do this, so we put it
@@ -38,10 +43,11 @@ class SecondOrderFeatureGenerator():
         self.key_gen_func = self.first_order_generator.key_gen_func
         self.five_gram_word_list = self.first_order_generator.five_gram_word_list
         self.get_dir_and_dist = self.first_order_generator.get_dir_and_dist
+        self.get_dir_dist_feature = self.first_order_generator.get_dir_dist_feature
 
         return
 
-    def get_2nd_sibling_feature(self, fv, head_index, dep_index, sib_index, direction, dist):
+    def get_2nd_sibling_feature(self, head_index, dep_index, sib_index, direction, dist):
         """
         Add second order sibling feature to feature vector
 
@@ -53,14 +59,14 @@ class SecondOrderFeatureGenerator():
         head = xi, dep = xj, sibling = xk
 
         +------------------------+
-        | xi_pos, xk_pos, xj_pos | type = 41
-        | xk_pos, xj_pos         | type = 42
-        | xk_word, xj_word       | type = 43
-        | xk_word, xj_pos        | type = 44
-        | xk_pos, xj_word        | type = 45
+        | xi_pos, xk_pos, xj_pos | type = 0
+        | xk_pos, xj_pos         | type = 1
+        | xk_word, xj_word       | type = 2
+        | xk_word, xj_pos        | type = 3
+        | xk_pos, xj_word        | type = 4
         +------------------------+
 
-        (type, [remaining components in the above order])
+        (5, type, [remaining components in the above order])
 
         :param fv: Feature vector instance. This object will be changed in-place
         :param head_index: The index of the head node (parent node)
@@ -75,29 +81,19 @@ class SecondOrderFeatureGenerator():
         xk_word = self.word_list[sib_index]
         xj_word = self.word_list[dep_index]
 
-        key_gen_func = self.key_gen_func
+        local_fv = []
 
-        type1_str = key_gen_func((41, xi_pos, xk_pos, xj_pos))
-        type2_str = key_gen_func((42, xk_pos, xj_pos))
-        type3_str = key_gen_func((43, xk_word, xj_word))
-        type4_str = key_gen_func((44, xk_word, xj_pos))
-        type5_str = key_gen_func((45, xk_pos, xj_word))
+        local_fv.append( (5,0,xi_pos,xk_pos,xj_pos) )
+        local_fv.append( (5,1,xk_pos,xj_pos) )
+        local_fv.append( (5,2,xk_word,xj_word) )
+        local_fv.append( (5,3,xk_word,xj_pos) )
+        local_fv.append( (5,4,xk_pos,xj_word) )
 
-        fv.append(type1_str)
-        fv.append(type2_str)
-        fv.append(type3_str)
-        fv.append(type4_str)
-        fv.append(type5_str)
+        dir_dist_fv = self.get_dir_dist_feature(local_fv, direction, dist)
 
-        fv.append(key_gen_func((direction, dist, type1_str)))
-        fv.append(key_gen_func((direction, dist, type2_str)))
-        fv.append(key_gen_func((direction, dist, type3_str)))
-        fv.append(key_gen_func((direction, dist, type4_str)))
-        fv.append(key_gen_func((direction, dist, type5_str)))
+        return local_fv + dir_dist_fv
 
-        return
-
-    def get_2nd_grandparent_feature(self, fv, head_index, dep_index, gc_index, direction, dist):
+    def get_2nd_grandparent_feature(self, head_index, dep_index, gc_index, direction, dist):
         """
         Add grandchild feature into the feature vector
 
@@ -111,14 +107,14 @@ class SecondOrderFeatureGenerator():
         head = xi, dep = xj, gc = xk
 
         +------------------------+
-        | xi_pos, xk_pos, xj_pos | type = 51
-        | xk_pos, xj_pos         | type = 52
-        | xk_word, xj_word       | type = 53
-        | xk_word, xj_pos        | type = 54
-        | xk_pos, xj_word        | type = 55
+        | xi_pos, xk_pos, xj_pos | type = 0
+        | xk_pos, xj_pos         | type = 1
+        | xk_word, xj_word       | type = 2
+        | xk_word, xj_pos        | type = 3
+        | xk_pos, xj_word        | type = 4
         +------------------------+
 
-        (type, [remaining components in the above order])
+        (6, type, [remaining components in the above order])
 
         :param fv: Feature vector
         :param head_index: Index of the header
@@ -132,27 +128,17 @@ class SecondOrderFeatureGenerator():
         xk_word = self.word_list[gc_index]
         xj_word = self.word_list[dep_index]
 
-        key_gen_func = self.key_gen_func
+        local_fv = []
 
-        type1_str = key_gen_func((51, xi_pos, xk_pos, xj_pos))
-        type2_str = key_gen_func((52, xk_pos, xj_pos))
-        type3_str = key_gen_func((53, xk_word, xj_word))
-        type4_str = key_gen_func((54, xk_word, xj_pos))
-        type5_str = key_gen_func((55, xk_pos, xj_word))
+        local_fv.append( (6,0,xi_pos,xk_pos,xj_pos) )
+        local_fv.append( (6,1,xk_pos,xj_pos) )
+        local_fv.append( (6,2,xk_word,xj_word) )
+        local_fv.append( (6,3,xk_word,xj_pos) )
+        local_fv.append( (6,4,xk_pos,xj_word) )
 
-        fv.append(type1_str)
-        fv.append(type2_str)
-        fv.append(type3_str)
-        fv.append(type4_str)
-        fv.append(type5_str)
+        dir_dist_fv = self.get_dir_dist_feature(local_fv, direction, dist)
 
-        fv.append(key_gen_func((direction, dist, type1_str)))
-        fv.append(key_gen_func((direction, dist, type2_str)))
-        fv.append(key_gen_func((direction, dist, type3_str)))
-        fv.append(key_gen_func((direction, dist, type4_str)))
-        fv.append(key_gen_func((direction, dist, type5_str)))
-
-        return
+        return local_fv + dir_dist_fv
 
     #~def cache_feature_for_edge_list(self, edge_list):
     #~    """
@@ -202,12 +188,12 @@ class SecondOrderFeatureGenerator():
                          other_index_list=None,
                          feature_type=0):
         local_fv = []
-        self.add_local_vector(local_fv, head_index, dep_index, other_index_list, feature_type)
+        local_fv += self.add_local_vector(head_index, dep_index, other_index_list, feature_type)
 
         return local_fv
 
 
-    def add_local_vector(self, local_fv, head_index, dep_index,
+    def add_local_vector(self, head_index, dep_index,
                          other_index_list=None,
                          feature_type=0):
         """
@@ -249,6 +235,7 @@ class SecondOrderFeatureGenerator():
         :type dep_node: integer
         :param other_index_list: The index of
         """
+        fv = []
 
         if debug.debug.log_feature_request_flag is True:
             self.first_order_generator.log_feature_request(head_index,
@@ -269,27 +256,25 @@ class SecondOrderFeatureGenerator():
                 # Empty one. In this case local_fv_1st should not be used
             pass
         else:
-            self.first_order_generator.add_local_vector(local_fv, head_index, dep_index)
+            fv += self.first_order_generator.get_local_vector(head_index, dep_index)
 
         # Fast path: return directly if only 1st order are evaluated
         if feature_type == self.FIRST_ORDER:
             # Make sure the returned value is not written!!
-            return
+            return fv
 
         if (feature_type == self.SECOND_ORDER_SIBLING or
              feature_type == self.SECOND_ORDER_SIBLING_ONLY):
             sibling_index = other_index_list[0]
             direction, dist = self.get_dir_and_dist(sibling_index, dep_index)
-            self.get_2nd_sibling_feature(local_fv,
-                                         head_index, dep_index,
+            fv += self.get_2nd_sibling_feature(head_index, dep_index,
                                          sibling_index, direction, dist)
 
         elif (feature_type == self.SECOND_ORDER_GRANDCHILD or
               feature_type == self.SECOND_ORDER_GRANDCHILD_ONLY):
             grandchild_index = other_index_list[0]
             direction, dist = self.get_dir_and_dist(dep_index, grandchild_index)
-            self.get_2nd_grandparent_feature(local_fv,
-                                             head_index, dep_index,
+            fv += self.get_2nd_grandparent_feature(head_index, dep_index,
                                              grandchild_index, direction, dist)
 
         else:
@@ -298,7 +283,7 @@ class SecondOrderFeatureGenerator():
 
         #print local_fv
 
-        return
+        return fv
 
     def find_sibling_relation(self, edge_list):
         """
@@ -331,26 +316,42 @@ class SecondOrderFeatureGenerator():
                 # May erase this later!
                 assert dep_index != sib_index
 
+                # |------->>>-----|
+                # head-->sibling  dep
                 if dep_index > head_index and sib_index > head_index:
                     # We always call the node
                     if dep_index > sib_index:
                         sibling_list.append((head_index, # Head
                                              dep_index,  # Dep
                                              sib_index)) # Sibling
+                        if self.head_modifier_dict[head_index][1] == -1 or \
+                           self.head_modifier_dict[head_index][1] < sib_index:
+                            self.head_modifier_dict[head_index][1] = sib_index
                     else:
                         sibling_list.append((head_index, # Head
                                              sib_index,  # Dep (although the var
                                                          # name is sib_index)
                                              dep_index)) # Sibling
+                        if self.head_modifier_dict[head_index][1] == -1 or \
+                           self.head_modifier_dict[head_index][1] < dep_index:
+                            self.head_modifier_dict[head_index][1] = dep_index
+                # |-------<<<-----|
+                #dep   sibling<--head
                 elif dep_index < head_index and sib_index < head_index:
                     if dep_index > sib_index:
                         sibling_list.append((head_index, # Head
                                              sib_index,  # Dep
                                              dep_index)) # Sibling
+                        if self.head_modifier_dict[head_index][0] == -1 or \
+                           self.head_modifier_dict[head_index][0] > dep_index:
+                            self.head_modifier_dict[head_index][0] = dep_index
                     else:
                         sibling_list.append((head_index, # Head
                                              dep_index,  # Dep
                                              sib_index)) # Sibling
+                        if self.head_modifier_dict[head_index][0] == -1 or \
+                           self.head_modifier_dict[head_index][0] > sib_index:
+                            self.head_modifier_dict[head_index][0] = sib_index
 
         return sibling_list
 
@@ -406,15 +407,15 @@ class SecondOrderFeatureGenerator():
         fv = []
 
         for head, dep in edge_list:
-            local_fv = self.add_local_vector(fv, head, dep)
+            fv += self.add_local_vector(head, dep)
 
         for head, dep, sib in sibling_list:
-            local_fv = self.add_local_vector(fv, head, dep,
+            fv += self.add_local_vector(head, dep,
                                              [sib],
                                              self.SECOND_ORDER_SIBLING_ONLY)
 
         for head, dep, gc in grandchild_list:
-            local_fv = self.add_local_vector(fv, head, dep,
+           fv += self.add_local_vector(head, dep,
                                              [gc],
                                              self.SECOND_ORDER_GRANDCHILD_ONLY)
         #print 'edge recovery'
