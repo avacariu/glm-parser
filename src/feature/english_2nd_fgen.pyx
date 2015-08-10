@@ -12,7 +12,6 @@
 import feature_vector
 import english_1st_fgen
 import debug.debug
-from collections import defaultdict
 
 import copy
 
@@ -28,10 +27,6 @@ class SecondOrderFeatureGenerator():
         # Make shortcuts - Not necessary, but saves some key strokes
         self.word_list = self.first_order_generator.word_list
         self.pos_list = self.first_order_generator.pos_list
-        # Dictionary stores the first left/right modifer of a head
-        # Key: the index of a head word
-        # Value: (first left modifier idx, first right modifer idx) of the head
-        self.head_modifier_dict = defaultdict(lambda:(-1, -1))
 
         #~# Get edge from sentence instance
         #~# Does not require first order fgen to do this, so we put it
@@ -324,17 +319,11 @@ class SecondOrderFeatureGenerator():
                         sibling_list.append((head_index, # Head
                                              dep_index,  # Dep
                                              sib_index)) # Sibling
-                        if self.head_modifier_dict[head_index][1] == -1 or \
-                           self.head_modifier_dict[head_index][1] < sib_index:
-                            self.head_modifier_dict[head_index][1] = sib_index
                     else:
                         sibling_list.append((head_index, # Head
                                              sib_index,  # Dep (although the var
                                                          # name is sib_index)
                                              dep_index)) # Sibling
-                        if self.head_modifier_dict[head_index][1] == -1 or \
-                           self.head_modifier_dict[head_index][1] < dep_index:
-                            self.head_modifier_dict[head_index][1] = dep_index
                 # |-------<<<-----|
                 #dep   sibling<--head
                 elif dep_index < head_index and sib_index < head_index:
@@ -342,16 +331,10 @@ class SecondOrderFeatureGenerator():
                         sibling_list.append((head_index, # Head
                                              sib_index,  # Dep
                                              dep_index)) # Sibling
-                        if self.head_modifier_dict[head_index][0] == -1 or \
-                           self.head_modifier_dict[head_index][0] > dep_index:
-                            self.head_modifier_dict[head_index][0] = dep_index
                     else:
                         sibling_list.append((head_index, # Head
                                              dep_index,  # Dep
                                              sib_index)) # Sibling
-                        if self.head_modifier_dict[head_index][0] == -1 or \
-                           self.head_modifier_dict[head_index][0] > sib_index:
-                            self.head_modifier_dict[head_index][0] = sib_index
 
         return sibling_list
 
