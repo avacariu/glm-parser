@@ -34,7 +34,7 @@ to the feature generator in case extra feature will be needed given special depe
 left/right child of a node).
 
 ####`find_best_k(heap_ij, heap_ik, heap_kj, k)` 
-Find the k-best score from the grid of two sub nodes and update the heap in cell (i,j) 
+Find the k-best score from the grid of two sub nodes and update the target heap
 
 * `heap_ij`: the target heap to be modified 
 * `heap_ik`: the sub node to be combined 
@@ -45,7 +45,7 @@ Find the k-best score from the grid of two sub nodes and update the heap in cell
 ``` 
 find_best_k(heap_ij, heap_ik, heap_kj, k):
 	init(heap_process)
-	node = combine(heap_ik[0] + heap_kj[0])
+	node = combine(heap_ik[0], heap_kj[0])
 	heap_process.push(node)
 	i = 0
 	while( i < k and !heap_process.empty()):
