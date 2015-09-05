@@ -1,5 +1,5 @@
 
-# Cube Pruning Eisner Parser Design Documentation                                                                                     
+# Cube Pruning Eisner Parser Design Doc                                                                                     
 
 The cube pruning approach is similar to the methods described in the following paper:                                                    
 * Hao Zhang; Ryan McDonald. [Enforcing Structural Diversity in Cube-pruned Dependency Parsing](http://www.aclweb.org/anthology/P/P14/P14-2107.pdf). EMNLP 2014. (this one has the clearest examples of the cube pruning algorithm) 
@@ -12,7 +12,13 @@ The parser will run two arounds. In the first round, normal first order eisner p
 
 ### Data Structure
 The basic chart element is `EisnerNode(i,j)`, which stores the current score of that cell in the ith row and jth column and the index that divide the cell. The Eisner matrix is a n by n two-dimentional array, each cell 
-contains a max-heap in terms of score of the EisnerNode inside of it. 
+contains a max-heap in terms of score of the EisnerNode inside of it.  
+
+* `EisnerNode`: Basic chart element containing current node score and index that divide this node  
+* `EdgeRecoverNode`: Data structure used to recover the edge set based on the computed eisner chart in back tracing  
+* `EisnerHeap`: Heap storing the best-k scores of `EisnerNode`, each element in the heap share same location index but has different history 
+
+ 
 
 ### Method
  
@@ -32,5 +38,19 @@ Find the k-best score from the grid of two sub nodes and update the heap in cell
 
 * `heap_ij`: the target heap to be modified 
 * `heap_ik`: the sub node to be combined 
-* `heap_kj`: the sub node to be combined  
+* `heap_kj`: the sub node to be combined   
+
 ![chart](chart.png) ![cube_pruning](cube_pruning.png) 
+
+``` 
+find_best_k(heap_ij, heap_ik, heap_kj, k):
+	init(heap_process)
+	node = combine(heap_ik[0] + heap_kj[0])
+	heap_process.push(node)
+	i = 0
+	while( i < k and !heap_process.empty()):
+		node = heap_process.pop()
+		push node's neigher to heap_process
+		heap_ij.push(node)
+		i++
+```
