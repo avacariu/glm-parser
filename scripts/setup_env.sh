@@ -5,7 +5,7 @@ project_path=$(python get_path.py)
 source $MODULESHOME/init/bash
 module load LANG/PYTHON/2.7.6-SYSTEM
 
-export PYTHONPATH=$PYTHONPATH:/cs/natlang-projects/glm-parser/Cython-0.20.1
+export PYTHONPATH=$PYTHONPATH:/cs/natlang-projects/glm-parser/Cython-0.23.3
 
 cd $project_path
 
