@@ -20,16 +20,16 @@ cdef struct EdgeRecoverNode:
     int shape
 
 cdef bool max_heap_comp(EisnerNode a, EisnerNode b):
-    return a.score < b.score
+    return a.score <= b.score
     
 cdef bool sort_comp(EisnerNode a, EisnerNode b):
-    return a.score > b.score
+    return a.score >= b.score
 
 cdef cppclass EisnerHeap:
     vector[EisnerNode] data
     int maxSize
     EisnerHeap(int size):
-        maxSize = size
+        this.maxSize = size
 
     void push_back(EisnerNode node):
         data.push_back(node)
@@ -42,7 +42,7 @@ cdef cppclass EisnerHeap:
     void push(EisnerNode node):
         push_back(node)
         if data.size() > maxSize:
-            pop_front()
+            data.pop_back()
 
     void sort():
         stdsort(data.begin(), data.end(), &sort_comp)
@@ -61,7 +61,7 @@ cdef class EisnerParser:
     def __cinit__(self):
         pass
     
-    def init_eisner_matrix(self, max_size):
+    def init_eisner_matrix(self, max_size = 6):
         self.e = <PP_EisnerHeap***>malloc(self.n*sizeof(PP_EisnerHeap**))
         cdef int i, j, k, l
         for i in range(self.n):
@@ -72,7 +72,8 @@ cdef class EisnerParser:
                     self.e[i][j][k] = <P_EisnerHeap*>calloc(2,sizeof(P_EisnerHeap))
                     for l in range(2):
                         self.e[i][j][k][l] = new EisnerHeap(max_size)
-                        self.e[i][j][k][l].push(EisnerNode(0,0))
+                    if i == j:
+                        self.e[i][j][k][0].push(EisnerNode(0,0))
                         
         return
 
@@ -94,7 +95,7 @@ cdef class EisnerParser:
             print "invalid head and modifier for combine triangle!!!"
             
         cdef int s, t, q
-        cdef bool direction
+        cdef int direction
         if head < modifier:
             s = head
             t = modifier
@@ -104,10 +105,10 @@ cdef class EisnerParser:
             t = head
             direction = 0
             
-        cdef float edge_score = arc_weight(sent.get_local_vector(head, modifier))
+        cdef float edge_score
         cdef EisnerNode node
 
-        for q from s < q < t by 1:
+        for q from s <= q < t by 1:
             if cube_prunning == 0:
                 edge_score = arc_weight(sent.get_local_vector(head, modifier, None, 0))
                 node.score = \
@@ -125,7 +126,7 @@ cdef class EisnerParser:
         cdef EisnerNode node
 
         cdef int q
-        for q from s < q < t by 1:
+        for q from s <= q < t by 1:
             if cube_prunning == 0:
                 node.score = self.e[s][q][0][0].front().score + self.e[q][t][0][1].front().score
                 node.mid_index = q
@@ -140,6 +141,7 @@ cdef class EisnerParser:
         
         cdef EisnerNode node
         cdef int q
+        cdef int xx
         for q from s < q <= t by 1:
             node.score = self.e[s][q][1][1].front().score + self.e[q][t][1][0].front().score
             node.mid_index = q
@@ -243,7 +245,7 @@ cdef class EisnerParser:
             if node.orientation == 0 and node.shape == 1:
                 node_left, node_right = self.split_left_trapezoid(node)
                 push = True
-                
+
             if push:
                 if node_left.s != node_left.t:
                     node_queue.push(node_left)
@@ -252,9 +254,8 @@ cdef class EisnerParser:
         return
     
     def parse(self, sent, arc_weight):	
-
         self.n = len(sent.word_list)
-        self.init_eisner_matrix()
+        self.init_eisner_matrix(3)
 
         cdef int m, s, t, q
         
@@ -264,7 +265,6 @@ cdef class EisnerParser:
                 t = s + m
                 if t >= self.n:
                     break
-                
                 self.combine_triangle(t, s, arc_weight, sent, 0)
                 self.combine_triangle(s, t, arc_weight, sent, 0)
                 self.combine_left(s, t, 0)
