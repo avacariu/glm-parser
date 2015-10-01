@@ -141,7 +141,6 @@ cdef class EisnerParser:
         
         cdef EisnerNode node
         cdef int q
-        cdef int xx
         for q from s < q <= t by 1:
             node.score = self.e[s][q][1][1].front().score + self.e[q][t][1][0].front().score
             node.mid_index = q
