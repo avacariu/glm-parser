@@ -20,10 +20,10 @@ cdef struct EdgeRecoverNode:
     int shape
 
 cdef bool max_heap_comp(EisnerNode a, EisnerNode b):
-    return a.score <= b.score
+    return a.score < b.score
     
 cdef bool sort_comp(EisnerNode a, EisnerNode b):
-    return a.score >= b.score
+    return a.score > b.score
 
 cdef cppclass EisnerHeap:
     vector[EisnerNode] data
@@ -73,7 +73,7 @@ cdef class EisnerParser:
                     for l in range(2):
                         self.e[i][j][k][l] = new EisnerHeap(max_size)
                     if i == j:
-                        self.e[i][j][k][0].push(EisnerNode(0,0))
+                        self.e[i][j][k][0].push(EisnerNode(0,i))
                         
         return
 
@@ -108,9 +108,10 @@ cdef class EisnerParser:
         cdef float edge_score
         cdef EisnerNode node
 
+        if cube_prunning == 0:
+            edge_score = arc_weight(sent.get_local_vector(head, modifier))
         for q from s <= q < t by 1:
             if cube_prunning == 0:
-                edge_score = arc_weight(sent.get_local_vector(head, modifier, None, 0))
                 node.score = \
                     self.e[s][q][1][0].front().score + self.e[q+1][t][0][0].front().score + edge_score
                 node.mid_index = q
@@ -268,7 +269,7 @@ cdef class EisnerParser:
                 self.combine_triangle(s, t, arc_weight, sent, 0)
                 self.combine_left(s, t, 0)
                 self.combine_right(s, t, 0)
-       
+
         self.get_edge_list()       
         self.delete_eisner_matrix()
 
