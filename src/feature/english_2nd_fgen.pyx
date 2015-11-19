@@ -241,8 +241,7 @@ class SecondOrderFeatureGenerator():
         # Deal with the case when feature type == 1 (sibling)
         # but the sibling is None. In this case the situation
         # degrades to a normal dependency relation
-        if feature_type == self.SECOND_ORDER_SIBLING and \
-             other_index_list[0] is None:
+        if other_index_list is None:
             feature_type = self.FIRST_ORDER
 
         # For these two types there is not need to compute first order

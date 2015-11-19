@@ -188,7 +188,7 @@ class Sentence():
     def get_local_vector(self, 
                          head_index,
                          dep_index,
-                         another_index_list = [],
+                         another_index_list = None,
                          feature_type = 0):
         """
         Return local vector from fgen
