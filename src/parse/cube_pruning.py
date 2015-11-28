@@ -79,6 +79,9 @@ class CubePruningParser():
                 for k in xrange(2):
                     for l in xrange(2):
                         e4[i][j][k][l].setState(i, j, k, l)
+            for j in xrange(2):
+                for k in xrange(2):
+                    heappush(e4[i][i][j][k].heap, (0, i, (None, None), (None, None)))
         return e4
 
     def get_edge_list(self, e, n):
