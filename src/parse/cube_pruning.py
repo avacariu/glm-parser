@@ -20,6 +20,16 @@ class EisnerHeap():
         return len(self.buf)
     
     def findKBest(self, node, nodeGen, arc_weight, sentence):
+        """
+        node is a tuple containing state information
+        format:
+        ---------------------------------------------------------------------
+        |  0   |     1     |           2           |          3             |
+        ---------------------------------------------------------------------
+        |score | mid_index |(left_heap, heap_index)|(right_heap, heap_index)|
+        ---------------------------------------------------------------------
+ 
+        """
         score = node[0]
         mid_index = node[1]
         left_heap = node[2][0]
@@ -27,18 +37,17 @@ class EisnerHeap():
         right_heap = node[3][0]
         right_index = node[3][1]
 
-        if self.cube[node[1]] == None:
-            self.cube[node[1]] = [[None for i in xrange(self.bestK)] for j in xrange(self.bestK)]
-        self.cube[node[1]][node[2][1]][node[3][1]] = node[0]
+        if self.cube[mid_index] == None:
+            self.cube[mid_index] = [[None for i in xrange(self.bestK)] for j in xrange(self.bestK)]
+        self.cube[mid_index][left_index][right_index] = score
         
         for i in [(-1,0), (1,0), (0,-1), (0,1)]:
-            left = node[2][1] + i[0]
-            right = node[3][1] + i[1]
+            left = left_index + i[0]
+            right = right_index + i[1]
             if left >= 0 and left < left_heap.getSize() and right >= 0 and right < right_heap.getSize():
-                if self.cube[node[1]][left][right] is not None:
+                if self.cube[mid_index][left][right] is not None:
                     continue
-                score = left_heap[left][0] + right_heap[right][0] + \
-                        nodeGen(arc_weight, sentence, self, left_heap[left], right_heap[right])
+                score = nodeGen(arc_weight, sentence, self, left_heap[left], right_heap[right])
                 heappush(self.heap, (score, mid_index, (left_heap, left), (right_heap, right)))
 
     def explore(self, stateGen, arc_weight, sentence):
@@ -58,6 +67,14 @@ class CubePruningParser():
     def init_eisner_matrix(self,n):
         """
         Initialize a dynamic programming table, i.e. e[0..n][0..n][0..1][0..1]
+        Format: e[start][end][orientation][shape]
+
+        orientation: 
+        <-:0
+        ->:1
+        shape:
+        trapezoid:1
+        triangle:0
 
         :param n: The length of the sentence including the artificial ROOT
         :type n: integer
@@ -140,7 +157,8 @@ class CubePruningParser():
                     break
                 #t1 = time.clock()  
                 def trapezoidGenLeft(arc_weight, sentence, heap, left, right):
-                    score = arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [right[1]], 1))\
+                    score = -left[0] - right[0]\
+                          + arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [right[1]], 1))\
                           + arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [left[1]], 2))
                     return -score
 
@@ -151,7 +169,8 @@ class CubePruningParser():
                 
                 #t1 = time.clock()
                 def trapezoidGenRight(arc_weight, sentence, heap, left, right):
-                    score = arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [left[1]], 1))\
+                    score = -left[0] - right[0]\
+                          + arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [left[1]], 1))\
                           + arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [right[1]], 2))
                     return -score
 
@@ -162,7 +181,8 @@ class CubePruningParser():
                 e[s][t][1][1].explore(trapezoidGenRight, arc_weight, sentence)
 
                 def triangleGenLeft(arc_weight, sentence, heap, left, right):
-                    score = arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [left[1]], 2))
+                    score = -left[0] - right[0]\
+                          + arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [left[1]], 2))
                     return -score
 
                 for q in range(s, t):
@@ -172,7 +192,8 @@ class CubePruningParser():
                 e[s][t][0][0].explore(triangleGenLeft, arc_weight, sentence)
 
                 def triangleGenRight(arc_weight, sentence, heap, left, right):
-                    score = arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [right[1]], 2))
+                    score = -left[0] - right[0]\
+                          + arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [right[1]], 2))
                     return -score
 
                 for q in range(s+1, t+1):
