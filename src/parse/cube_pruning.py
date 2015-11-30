@@ -39,7 +39,7 @@ class EisnerHeap():
 
         if self.cube[mid_index] == None:
             self.cube[mid_index] = [[None for i in xrange(self.bestK)] for j in xrange(self.bestK)]
-        self.cube[mid_index][left_index][right_index] = score
+            self.cube[mid_index][left_index][right_index] = score
         
         for i in [(-1,0), (1,0), (0,-1), (0,1)]:
             left = left_index + i[0]
@@ -48,6 +48,7 @@ class EisnerHeap():
                 if self.cube[mid_index][left][right] is not None:
                     continue
                 score = nodeGen(arc_weight, sentence, self, left_heap[left], right_heap[right])
+                self.cube[mid_index][left][right] = score
                 heappush(self.heap, (score, mid_index, (left_heap, left), (right_heap, right)))
 
     def explore(self, stateGen, arc_weight, sentence):
