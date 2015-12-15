@@ -45,7 +45,7 @@ class EisnerParser():
         return
     
 
-    def parse(self,n,arc_weight,sentence=None):
+    def parse(self,sentence, arc_weight):
         """
         Implementation of Eisner Algorithm using dynamic programming table
         
@@ -58,6 +58,7 @@ class EisnerParser():
         :rtype: tuple(integer,list(tuple(integer,integer)))
         """
         #tt = 0;
+        n = len(sentence.word_list)
         e = self.init_eisner_matrix(n)
         for m in range(1, n):
             for s in range(0, n):
@@ -65,7 +66,7 @@ class EisnerParser():
                 if t >= n:
                     break
                 #t1 = time.clock()
-                weight = arc_weight(t,s)
+                weight = arc_weight(sentence.get_local_vector(t,s))
                 #tt += (time.clock() - t1)
                 e[s][t][0][1][0], q_max = max(
                     [(e[s][q][1][0][0] + e[q+1][t][0][0][0] + weight, q)
@@ -76,7 +77,7 @@ class EisnerParser():
                 
                 
                 #t1 = time.clock()
-                weight = arc_weight(s,t)
+                weight = arc_weight(sentence.get_local_vector(s,t))
                 #tt += (time.clock() - t1)
                 e[s][t][1][1][0], q_max = max(
                     [(e[s][q][1][0][0] + e[q+1][t][0][0][0] + weight, q)
