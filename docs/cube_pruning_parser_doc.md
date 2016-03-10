@@ -2,55 +2,56 @@
 # Cube Pruning Eisner Parser Design Doc                                                                                     
 
 The cube pruning approach is similar to the methods described in the following paper:                                                    
-* Hao Zhang; Ryan McDonald. [Enforcing Structural Diversity in Cube-pruned Dependency Parsing](http://www.aclweb.org/anthology/P/P14/P14-2107.pdf). EMNLP 2014. (this one has the clearest examples of the cube pruning algorithm) 
+* Hao Zhang; Ryan McDonald. [Enforcing Structural Diversity in Cube-pruned Dependency Parsing](http://www.aclweb.org/anthology/P/P14/P14-2107.pdf). EMNLP 2014. 
 * Hao Zhang; Ryan McDonald. [Generalized Higher-Order Dependency Parsing with Cube Pruning](http://www.aclweb.org/anthology/D/D12/D12-1030.pdf)                                                                                     
 * Hao Zhang; Liang Huang; Kai Zhao; Ryan McDonald. [Online Learning for Inexact Hypergraph Search](http://www.aclweb.org/anthology/D/D13/D13-1093.pdf). [attachment](http://www.aclweb.org/anthology/attachments/D/D13/D13-1093.Attachment.pdf)                                                                                                       
 
 ## Design                                                                                                         
 
-The parser will run two arounds. In the first round, normal first order eisner parser will be used to initialize the eisner chart and in the second round, higher feature will be put into account based on higher order feature generator and the weight chart calculated in the first round.                            
+Each parsing state will have a parsing history(possible parsing sub trees). We combine two parsing state using cube-pruning to prune out the subtrees that are not likely to appear in the optimal result. In other words, each spam will generate a best-of-k subtrees of that spam. After filling out the whole eisner matrix, 
+a forest of possible parsing trees will be generated.          
 
 ### Data Structure
-The basic chart element is `EisnerNode(i,j)`, which stores the current score of that cell in the ith row and jth column and the index that divide the cell. The Eisner matrix is a n by n two-dimentional array, each cell 
-contains a max-heap in terms of score of the EisnerNode inside of it.  
+The basic chart element is `EisnerHeap`, which stores the state information of one specific chart location. The Eisner matrix is a n by n two-dimentional array of `EisnerHeap`
 
-* `EisnerNode`: Basic chart element containing current node score and index that divide this node  
-* `EdgeRecoverNode`: Data structure used to recover the edge set based on the computed eisner chart in back tracing  
-* `EisnerHeap`: Heap storing the best-k scores of `EisnerNode`, each element in the heap share same location index but has different history 
+#### `EisnerHeap` member  
 
+* `bestK`: Specify the number of parsing histories(sub trees), the size of `buf`  
+* `cube`: Three dimensional array [n][k][k], used in cube-pruning stage to color the search history of cube pruning  
+* `buf`: Array of `bestK` number of possible sub trees in descending order in terms of root score 
+* `heap`: heap structure used in cube pruning stage
+* `state`: a tuple containing state information, (head, depend, direction, shape)
  
 
-### Method
- 
-####`parse(k, arc_weight, sent)` 
-Parse the sentence
-
-* `k`: indicate the best-k result will be stored when updating a cell in the chart. if set `k = 1`, higher order  
-feature generator will not be envoked.                                                                            
-* `arc_weight(feature_vecotr)`: evaluate the edge weight given feature vector
-* `sent(head, dep, other, state_info)`:  contains feature generator which will provide feature vector to arc_weight.
-the head, dep and other index (sibling or grandchild), state_info pass the current sub tree state information 
-to the feature generator in case extra feature will be needed given special dependence pair (features for first
-left/right child of a node).
-
-####`find_best_k(heap_ij, heap_ik, heap_kj, k)` 
-Find the k-best score from the grid of two sub nodes and update the target heap
-
-* `heap_ij`: the target heap to be modified 
-* `heap_ik`: the sub node to be combined 
-* `heap_kj`: the sub node to be combined   
-
-![chart](chart.png) ![cube_pruning](cube_pruning.png) 
-
+### Pseudocode
 ``` 
-find_best_k(heap_ij, heap_ik, heap_kj, k):
-	init(heap_process)
-	node = combine(heap_ik[0], heap_kj[0])
-	heap_process.push(node)
-	i = 0
-	while( i < k and !heap_process.empty()):
-		node = heap_process.pop()
-		push node's neigher to heap_process
-		heap_ij.push(node)
-		i++
+Parse(sentence, arc_weight):
+	for m in (1, n):
+		for s in (0, n):
+			t = s + m
+			for q in (s, t):
+				find top node N1 in heap[s][q].buf, top node N2 in heap[q][t].buf
+				init heap[s][t].cube[q]
+				node N = state_generating_func(N1, N2)
+				cube[q][0][0] = N
+				push N into heap[s][q].heap
+			Expore(heap[s][q].heap, heaps[s][q].buf, state_generating_func)
+
+Expore(heap, buf, state_generating_func):
+	while heap is not empty and size of buf < bestK:
+		node T = heap.pop()
+		push T to buf
+		find the cube C that generate T
+		for each neighbour E of T in C:
+			if E is not marked:
+				E.score = state_generating_func(E)
+				mark E in C
+				heap.push(E)
+
 ```
+
+
+
+![cube_pruning](cube_pruning.png) 
+
+
