@@ -19,7 +19,7 @@ class EisnerHeap():
     def getSize(self):
         return len(self.buf)
     
-    def findKBest(self, node, nodeGen, arc_weight, sentence):
+    def findKBest(self, node, nodeGen, arc_weight, sentence, weight_offset = 0):
         """
         node is a tuple containing state information
         format:
@@ -47,15 +47,15 @@ class EisnerHeap():
             if left >= 0 and left < left_heap.getSize() and right >= 0 and right < right_heap.getSize():
                 if self.cube[mid_index][left][right] is not None:
                     continue
-                score = nodeGen(arc_weight, sentence, self, left_heap[left], right_heap[right])
+                score = nodeGen(arc_weight, sentence, self, left_heap[left], right_heap[right], weight_offset)
                 self.cube[mid_index][left][right] = score
                 heappush(self.heap, (score, mid_index, (left_heap, left), (right_heap, right)))
 
-    def explore(self, stateGen, arc_weight, sentence):
+    def explore(self, stateGen, arc_weight, sentence, weight_offset = 0):
         while self.heap and len(self.buf) < self.bestK:
             newNode = heappop(self.heap)
             heappush(self.buf, newNode)
-            self.findKBest(newNode, stateGen, arc_weight, sentence)
+            self.findKBest(newNode, stateGen, arc_weight, sentence, weight_offset)
 
 class CubePruningParser():
     """
@@ -88,7 +88,7 @@ class CubePruningParser():
         # in the chart
         # The last dimenison of the table. It uses a tuple to store score
         # and edges of current stage
-        e1 = [copy.deepcopy(EisnerHeap(3, n)) for i in range(2)]
+        e1 = [copy.deepcopy(EisnerHeap(7, n)) for i in range(2)]
         # The dimension that specifies the direction of the edge
         e2 = [copy.deepcopy(e1) for i in range(2)]
         # The end of the span
@@ -106,10 +106,10 @@ class CubePruningParser():
                     heappush(e4[i][i][j][k].buf, (0, i, (None, None), (None, None)))
         return e4
 
-    def get_edge_list(self, e, n):
+    def get_edge_list(self, e, n, rank = 0):
         edge_list = []
         heap = []
-        headNode = (e[0][n-1][1][0][0], e[0][n-1][1][0].state)
+        headNode = (e[0][n-1][1][0][rank], e[0][n-1][1][0].state)
         heap.append(headNode)
         while heap:
             node = heap.pop(0)
@@ -132,9 +132,10 @@ class CubePruningParser():
             if right_node[1][0] is not right_node[1][1]:
                 heap.append(right_node)
         return edge_list 
+
             
 
-    def parse(self,sentence, arc_weight):
+    def parse(self,sentence, arc_weight, rank = 0):
         """
         Implementation of Eisner Algorithm using dynamic programming table
         
@@ -151,59 +152,72 @@ class CubePruningParser():
         n = len(sentence.word_list)
         e = self.init_eisner_matrix(n)
         
+        def english_1st_order_gen(arc_weight, sentence, heap, left, right, weight_offset = 0):
+            score = -left[0] - right[0] + weight_offset
+            return -score
+
         for m in range(1, n):
             for s in range(0, n):
                 t = s + m
                 if t >= n:
                     break
-                #t1 = time.clock()  
-                def trapezoidGenLeft(arc_weight, sentence, heap, left, right):
-                    score = -left[0] - right[0]\
-                          + arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [right[1]], 1))\
-                          + arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [left[1]], 2))
+                #t1 = time.clock()
+                '''  
+                def trapezoidGenLeft(arc_weight, sentence, heap, left, right, weight_offset = 0):
+                    score = -left[0] - right[0] + arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0]))
+                          #+ arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [right[1]], 1))\
+                          #+ arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [left[1]], 2))
                     return -score
-
+                '''
+                offset = arc_weight(sentence.get_local_vector(t, s))
                 for q in range(s, t):
-                    score = trapezoidGenLeft(arc_weight, sentence, e[s][t][0][1], e[s][q][1][0][0], e[q+1][t][0][0][0])
+                    score = english_1st_order_gen(arc_weight, sentence, e[s][t][0][1], e[s][q][1][0][0], e[q+1][t][0][0][0], offset)
                     heappush(e[s][t][0][1].heap, (score, q, (e[s][q][1][0],0), (e[q+1][t][0][0],0)))
-                e[s][t][0][1].explore(trapezoidGenLeft, arc_weight, sentence)
+                e[s][t][0][1].explore(english_1st_order_gen, arc_weight, sentence, offset)
                 
                 #t1 = time.clock()
+                '''
                 def trapezoidGenRight(arc_weight, sentence, heap, left, right):
-                    score = -left[0] - right[0]\
-                          + arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [left[1]], 1))\
-                          + arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [right[1]], 2))
+                    score = -left[0] - right[0] + arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1]))
+                          #+ arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [left[1]], 1))
+                          #+ arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [right[1]], 2))
                     return -score
-
+                '''
+                offset = arc_weight(sentence.get_local_vector(s, t))
                 for q in range(s, t):
-                    score = trapezoidGenRight(arc_weight, sentence, e[s][t][1][1], e[s][q][1][0][0], e[q+1][t][0][0][0])
+                    score = english_1st_order_gen(arc_weight, sentence, e[s][t][1][1], e[s][q][1][0][0], e[q+1][t][0][0][0], offset)
                     heappush(e[s][t][1][1].heap, (score, q, (e[s][q][1][0], 0), (e[q+1][t][0][0],0)))
                 
-                e[s][t][1][1].explore(trapezoidGenRight, arc_weight, sentence)
+                e[s][t][1][1].explore(english_1st_order_gen, arc_weight, sentence, offset)                
+
+                '''
 
                 def triangleGenLeft(arc_weight, sentence, heap, left, right):
-                    score = -left[0] - right[0]\
-                          + arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [left[1]], 2))
+                    score = -left[0] - right[0]
+                          #+ arc_weight(sentence.get_local_vector(heap.state[1], heap.state[0], [left[1]], 2))
                     return -score
+                '''
 
                 for q in range(s, t):
-                    score = triangleGenLeft(arc_weight, sentence, e[s][t][0][0], e[s][q][0][0][0], e[q][t][0][1][0])
+                    score = english_1st_order_gen(arc_weight, sentence, e[s][t][0][0], e[s][q][0][0][0], e[q][t][0][1][0])
                     heappush(e[s][t][0][0].heap, (score, q, (e[s][q][0][0], 0), (e[q][t][0][1],0)))
 
-                e[s][t][0][0].explore(triangleGenLeft, arc_weight, sentence)
-
+                e[s][t][0][0].explore(english_1st_order_gen, arc_weight, sentence)
+                
+                '''
                 def triangleGenRight(arc_weight, sentence, heap, left, right):
                     score = -left[0] - right[0]\
-                          + arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [right[1]], 2))
+                          #+ arc_weight(sentence.get_local_vector(heap.state[0], heap.state[1], [right[1]], 2))
                     return -score
+                '''
 
                 for q in range(s+1, t+1):
-                    score = triangleGenRight(arc_weight, sentence, e[s][t][1][0], e[s][q][1][1][0], e[q][t][1][0][0])
+                    score = english_1st_order_gen(arc_weight, sentence, e[s][t][1][0], e[s][q][1][1][0], e[q][t][1][0][0])
                     heappush(e[s][t][1][0].heap, (score, q, (e[s][q][1][1],0), (e[q][t][1][0],0)))
 
-                e[s][t][1][0].explore(triangleGenRight, arc_weight, sentence)
+                e[s][t][1][0].explore(english_1st_order_gen, arc_weight, sentence)
 
         #print "edge query time", tt
-        edge_list = self.get_edge_list(e, n)
+        edge_list = self.get_edge_list(e, n, rank)
         return edge_list
     
