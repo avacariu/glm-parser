@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
-import copy, time
-
 class EisnerParser():
     """
     An Eisner parsing algorithm implementation
     """
-    
+
     def __init__(self):
         return
-        
+
     def init_eisner_matrix(self,n):
         """
         Initialize a dynamic programming table, i.e. e[0..n][0..n][0..1][0..1]
@@ -24,13 +22,13 @@ class EisnerParser():
         # in the chart
         # The last dimenison of the table. It uses a tuple to store score
         # and edges of current stage
-        e1 = [copy.deepcopy([0,[]]) for i in range(2)]
-        # The dimension that specifies the direction of the edge
-        e2 = [copy.deepcopy(e1) for i in range(2)]
-        # The end of the span
-        e3 = [copy.deepcopy(e2) for i in range(n)]
-        # The start of the span
-        e4 = [copy.deepcopy(e3) for i in range(n)]
+        e4 = []
+        for i in range(n):
+            e3 = []
+            for i in range(n):
+                e3.append([[[0, []], [0, []]],
+                           [[0, []], [0, []]]])
+            e4.append(e3)
         return e4
 
     def store_parsed_result(self,parsed_result):
@@ -43,12 +41,12 @@ class EisnerParser():
         self.max_score = parsed_result[0]
         self.edge_set = parsed_result[1]
         return
-    
 
-    def parse(self,n,arc_weight,sentence=None):
+
+    def parse(self, sentence, arc_weight):
         """
         Implementation of Eisner Algorithm using dynamic programming table
-        
+
         :param n: The number of input words that constitute a sentence.
         :type n: int
         :param arc_weight: A scoring function that gives scores to edges
@@ -57,6 +55,7 @@ class EisnerParser():
         :return: The maximum score of the dependency structure as well as all edges
         :rtype: tuple(integer,list(tuple(integer,integer)))
         """
+        n = len(sentence.get_word_list())
         #tt = 0;
         e = self.init_eisner_matrix(n)
         for m in range(1, n):
@@ -65,42 +64,41 @@ class EisnerParser():
                 if t >= n:
                     break
                 #t1 = time.clock()
-                weight = arc_weight(t,s)
+                weight = arc_weight(sentence.get_local_vector(t, s))
                 #tt += (time.clock() - t1)
                 e[s][t][0][1][0], q_max = max(
                     [(e[s][q][1][0][0] + e[q+1][t][0][0][0] + weight, q)
-                    for q in range(s, t)], 
+                        for q in range(s, t)],
                     key=lambda (a,c): a)
                 e[s][t][0][1][1] =\
                     e[s][q_max][1][0][1] + e[q_max+1][t][0][0][1] + [(t,s)]
-                
-                
+
+
                 #t1 = time.clock()
-                weight = arc_weight(s,t)
+                weight = arc_weight(sentence.get_local_vector(s, t))
                 #tt += (time.clock() - t1)
                 e[s][t][1][1][0], q_max = max(
-                    [(e[s][q][1][0][0] + e[q+1][t][0][0][0] + weight, q)
-                    for q in range(s, t)], 
+                    [(e[s][q][1][0][0] + e[q+1][t][0][0][0] + weight, q) for q in range(s, t)],
                     key=lambda (a,c): a)
                 e[s][t][1][1][1] =\
                     e[s][q_max][1][0][1] + e[q_max+1][t][0][0][1] + [(s,t)]
-                
-                
+
+
                 e[s][t][0][0][0], q_max = max(
                     [(e[s][q][0][0][0] + e[q][t][0][1][0],q)
-                    for q in range(s, t)], 
+                    for q in range(s, t)],
                     key=lambda (a,c): a)
                 e[s][t][0][0][1] = e[s][q_max][0][0][1] + e[q_max][t][0][1][1]
-                
-                
+
+
                 e[s][t][1][0][0], q_max = max(
                     [(e[s][q][1][1][0] + e[q][t][1][0][0], q)
-                    for q in range(s+1, t+1)], 
+                    for q in range(s+1, t+1)],
                     key=lambda (a,c): a)
                 e[s][t][1][0][1] = e[s][q_max][1][1][1] + e[q_max][t][1][0][1]
                 #print s, t
-                
+
         self.store_parsed_result(e[0][n - 1][1][0])
-        #print "edge query time", tt    
+        #print "edge query time", tt
         return set(e[0][n - 1][1][0][1])
-    
+
